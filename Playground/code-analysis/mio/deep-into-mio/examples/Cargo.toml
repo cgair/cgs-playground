@@ -1,0 +1,64 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# import multiple versions of the same crate
+mio_06 = { package = "mio", version = "0.6.8" }
+mio_07 = { package = "mio", version = "0.7.6", features = ["net", "os-poll"]}
+
+[dev-dependencies.ethcore-io]
+path = "../runtime/io"
+features = ["mio"]
+
+[dev-dependencies.log]
+version = "0.4"
+
+[dev-dependencies.utils]
+path = "../utils"
+
+[dev-dependencies.anyhow]
+version = "1"
+
+[dev-dependencies.parking_lot]
+version = "0.11"
+
+[dev-dependencies.slab]
+version = "0.4"
+
+[dev-dependencies.bytes]
+version = "0.3.0"
+
+# mio v0.6.8
+[[example]]
+name = "mio_06"
+path = "./mio_06/mio_06.rs"
+
+[[example]]
+name = "echo_server"
+path = "./mio_06/echo_server.rs"
+
+[[example]]
+name = "mio_06_bench"
+path = "./mio_06/benchmark.rs"
+
+[[example]]
+name = "syn_strategy"
+path = "./mio_06/syn_strategy.rs"
+
+[[example]]
+name = "mio_07_bench"
+path = "./mio_07/benchmark.rs"
+
+# mio v0.7
+[[example]]
+name = "mio_07"
+path = "./mio_07/mio_07.rs"
+
+
+[[example]]
+name = "server"
+path = "./server.rs"

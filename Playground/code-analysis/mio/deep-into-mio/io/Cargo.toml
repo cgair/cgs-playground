@@ -1,0 +1,20 @@
+[package]
+description = "TreeGraph IO library"
+name = "io"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+fnv = "1.0"
+mio = { version = "0.6.19" }
+crossbeam-deque = "0.7"
+crossbeam-channel = "0.4"
+parking_lot = "0.11"
+log = "0.4"
+slab = "0.4"
+num_cpus = "1.8"
+timer = "0.2"
+time = "0.1"
+metrics = { git = "https://github.com/Conflux-Chain/conflux-rust.git", rev = "e63888d90f988844cd5caeb70f52cbf83d92e326" }
+lazy_static = "1.4"
+rand = "0.7.3"

@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "Rustaceans/rustls-example",
+    "Rustaceans/time-travel-debugging",
+    "Rustaceans/simulate-deadlock",
+    "Rustaceans/rust-variable-assignment",
+    "Rustaceans/Stack/estimate-thread-stack-size",
+    "Rustaceans/Stack/stack-changes-during-function-calls",
+    "Rustaceans/write-cpu-adaptation-code",
+
+    "Rustaceans/trait-object",
+
+    # Blockchain related lab
+    "Playground/code-analysis/mio/deep-into-mio/examples",
+    "Playground/code-analysis/mio/deep-into-mio/runtime/io",
+    "Playground/code-analysis/mio/deep-into-mio/utils",
+
+    # Rust Asynchronization
+    "Rustaceans/Asynchronization/green-thread-explained",
+    "Rustaceans/Asynchronization/minimio",
+
+    # Rustonomicon
+    "Rustaceans/Rustonomicon/concurrency/race",
+    "Rustaceans/Rustonomicon/concurrency/send_sync",
+    "Rustaceans/Rustonomicon/data_layout",
+    ## ownership
+    "Rustaceans/Rustonomicon/ownership/lifetime",
+    "Rustaceans/Rustonomicon/ownership/reference_aliasing",
+    "Rustaceans/Rustonomicon/ownership/hrtbs",
+    "Rustaceans/Rustonomicon/ownership/subtyping_and_variance",
+    "Rustaceans/Rustonomicon/ownership/drop_check",
+    "Rustaceans/Rustonomicon/ownership/phantom_data",
+
+    "Rustaceans/Rustonomicon/type_conversions",
+
+    # Rust Reference
+    "Rustaceans/RustReference/rust-reference",
+
+    # Operating System
+    "Playground/os/concurrency/thread_creation",
+    "Playground/os/concurrency/locks",
+]
