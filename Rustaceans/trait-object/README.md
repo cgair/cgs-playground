@@ -1,4 +1,9 @@
 # trait object
+Use trait objects to get some object-oriented features in Rust. 动态分派可以为您的代码提供一些灵活性, 以换取一些运行时性能.
+## Object-Oriented Programming Features of Rust. 
+[Characteristics of Object-Oriented Languages](https://doc.rust-lang.org/book/ch17-01-what-is-oo.html)
+多态性意味着如果多个对象共享某些特征, 可以在运行时相互替换多个对象.
+
 Rust 提供了安全的抽象以避免产生安全问题或者错误.
 * 比如我们使用 `RC` 而不直接管理引用计数, 使用 `Box` 而不是 `malloc/free` 直接管理内存分配.
 * 同样, `dyn Trait` 隐藏了复杂而又为危险的虚表实现, 为我们提供了简单而又安全的动态分发.
@@ -75,17 +80,15 @@ objdump --disassemble=polymorphism::main -S -C target/debug/polymorphism -EL -M 
 #    7cf6:	66 2e 0f 1f 84 00 00 00 	nop    WORD PTR cs:[rax+rax*1+0x0]
 #    7cfe:	00 00 
 ```
-因为它被设计为 call a function at a **calculated location**, specifically an offset based on whatever value is in the `rsi` register.
+因为它 call a function at a **calculated location**, specifically an offset based on whatever value is in the `rsi` register.
 So we know from the previous objdump that `rsi` will contain `0x4c1c8` when our `Lion` type is used, `0x4c1e8` for `Tiger`, and `0x4c208` for `Bear`. 
 
 **And why is the program adding `0x18` to this value before calling the resulting memory location (line 31)?**
 
 我们希望调用的方法实际上位于距每个`vtable`头 24 个字节的偏移处 (`the hexidecimal equivalent for this is 0x18`). 这就是为什么我们的 `dynamic_dispatch` 函数在调用指令之前将`0x18`添加到` rsi `. `rsi` 包含我们想要的类型的 vtable 的位置, 并将 `0x18` 添加到这个位置可以让我们找到想要访问的这个 `vtable` 中的条目.
 
-在我们程序的整个生命周期中加载到 `rsi` 的三个 `memory location` 中的每一个都是不同类型的 vtable 所在的位置
-
-
-
+在我们程序的整个生命周期中加载到 `rsi` 的三个 `memory location` 中的每一个都是不同类型的 vtable 所在的位置. 但是, vtable 中包含指向我们希望调用的方法的指针的部分实际上位于距每个表开头 24 个字节 (hexidecimal 0x18) 的偏移处. 这就是为什么我们的 dynamic_dispatch 函数在调用指令之前将它添加到 rsi 的原因. 
+然而, 位于此处的仍然不是我们的方法, 而是另一个指针: **QWORD PTR [rsi+0x18] - 它首先加载位于 rsi + 0x18 的值作为指针, 然后调用由该指针表示的内存位置.**
 
 
 # REFERENCE
