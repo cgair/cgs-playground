@@ -268,3 +268,234 @@ ELF Header   |
             execve("a.out")
 ### [Lab - 实现 ELF Loader]
 ELF/loader-static.c (运行在用户态, 应用 mmap): 解析数据结构 + 复制到内存 + 跳转
+
+# 上下文切换
+机制 (mechanism): 上下文切换
+* 在中断/系统调用时执行操作系统代码
+* 操作系统实现所有状态机 (进程) 一视同仁的 “封存”
+* 从而可以恢复任意一个状态机 (进程) 执行
+
+# 处理器调度
+## [处理器调度.Q1 - 策略 (policy) 我们到底选哪个进程执行呢?]
+
+## 简化的处理器调度问题
+中断机制
+* 处理器以固定的频率被中断
+  * Linux Kernel 可以配置: make menuconfig -> Processor type and features -> Time frequency -> 100/250/300/1000Hz
+  * 中断/系统调用返回时可以自由选择进程/线程执行
+
+**处理器调度问题的简化假设**
+* 系统中有一个处理器 (1970s) `lscpu`
+* 系统中有多个进程/线程共享 CPU
+* 包括系统调用 (进程/线程的一部分代码在 syscall 中执行)
+* 偶尔会等待 I/O 返回, 不使用 CPU (通常时间较长)
+
+#### [策略: Round-Robin]
+![Round-Robin](https://jyywiki.cn/pages/OS/img/sched-rr.png)
+假设当前 Ti 运行
+* 中断后试图切换到下一个线程 T (i + 1) mod n
+* 如果下一个线程正在等待 I/O 返回, 继续尝试下一个
+  * 如果系统所有的线程都不需要 CPU, 就调度 idle 线程执行
+中断之间的**线程执行**称为 "时间片" (time-slicing)
+
+#### [策略: 引入优先级]
+UNIX niceness: 1. `top 看 NI` 2. `man nice`
+* -20 .. 19 的整数, 越 nice 越让别人得到 CPU
+  * -20: 极坏; most favorable to the process
+  *  19: 极好; least favorable to the process
+
+* (所以就有了) 基于优先级的调度策略
+RTOS: 坏人躺下好人才能上
+Linux: nice 相差 10, CPU 资源获得率相差 10 倍 (大约)
+**Try nice/renice**
+```bash
+taskset -c 0 nice -n 19 yes > /dev/null &
+taskset -c 0 nice -n  9 yes > /dev/null &
+# 然后 top -d 0.5 看 yes 表现是否符合上面说的: nice 相差 10, CPU 资源获得率相差 10 倍 (大约)
+```
+
+## 真实的处理器调度
+实际上更多的情况类似于:
+系统里有两个进程
+* 交互式的 Vim, 单线程
+* 纯粹计算的 (mandelbrot.c), 32 个线程
+
+Round-Robin 就会出现问题: 
+* Vim 花 0.1ms 处理完输入就又等输入了 (主动让出 CPU)
+* Mandelbrot 使 Vim 在有输入可以处理的时候被延迟 (必须等当前的 Mandelbrot 转完一圈), 数百 ms 的延迟就会使人感到明显卡顿
+
+### [策略: 动态优先级]
+![Round-Robin 队列](https://jyywiki.cn/pages/OS/img/MLFQ.png)
+* 设置若干个 Round-Robin 队列
+  * 每个队列对应一个优先级
+* 动态优先级调整策略
+  * 优先调度高优先级队列
+  * 用完时间片 -> 坏人
+  * 让出 CPU I/O -> 好人
+
+### [策略: Complete Fair Scheduling (CFS)]
+> The Completely Fair Scheduler (CFS) is a process scheduler that was merged into the 2.6.23 (October 2007) release of the Linux kernel and is the default scheduler of the tasks of the SCHED_NORMAL class (i.e., tasks that have no real-time execution constraints).
+
+试图去模拟一个 "Ideal Multi-Tasking CPU":
+* "Ideal multi-tasking CPU" is a (non-existent :-)) CPU that has 100% physical power and which can run each task at precise equal speed, in parallel, each at 1/n. For example: if there are 2 tasks running, then it runs each at 50% physical power — i.e., actually in parallel.
+
+* "让系统里的所有进程尽可能公平地共享处理器"
+  * 为每个进程记录精确的运行时间
+  * 中断/异常发生后, 切换到运行时间最少的进程执行
+  * 下次中断/异常后, 当前进程的可能就不是最小的了
+
+操作系统具有对物理时钟的 "绝对控制"
+* 每人执行 1ms, 但好人的钟快一些, 坏人的钟慢一些
+  * [vruntime (virtual runtime)](https://stackoverflow.com/questions/19181834/what-is-the-concept-of-vruntime-in-cfs)
+  * vrt[i] / vrt[j] 的增加比例 = wt[j] / wt[i]
+```c
+const int sched_prio_to_weight[40] = {
+  /* -20 */ 88761, 71755, 56483, 46273, 36291,
+  /* -15 */ 29154, 23254, 18705, 14949, 11916,
+  /* -10 */  9548,  7620,  6100,  4904,  3906,
+  /*  -5 */  3121,  2501,  1991,  1586,  1277,
+  /*   0 */  1024,   820,   655,   526,   423,
+  /*   5 */   335,   272,   215,   172,   137,
+  /*  10 */   110,    87,    70,    56,    45,
+  /*  15 */    36,    29,    23,    18,    15,
+};
+```
+#### CFS 的复杂性 (1): 新进程/线程
+假设 P1, P2, P3 已经执行几个时间片, 此时 P1 fork -> P4, P4 分配多少时间?
+子进程继承父进程的 vruntime
+* 并且从 2.6.32 开始, [parent run first](https://lkml.org/lkml/2009/9/11/411)
+```c
+static void task_fork_fair(struct task_struct *p) {
+  struct sched_entity *se = &p->se, *curr;
+  ...
+  rq_lock(rq, &rf);
+  update_rq_clock(rq);
+  cfs_rq = task_cfs_rq(current);
+  curr = cfs_rq->curr;
+  if (curr) {
+    update_curr(cfs_rq);
+    se->vruntime = curr->vruntime; // 继承父进程的 vruntime
+  }
+  place_entity(cfs_rq, se, 1);
+  ...
+```
+#### CFS 的复杂性 (2): I/O
+I/O (例如 1 分钟) 以后回来 vruntime 严重落后
+* 为了赶上，CPU 会全部归它所有
+Linux 的实现
+* 被唤醒的进程获得 "最小" 的 vruntime (可以立即被执行)
+* 曾经会给唤醒的进程一些额外的 vruntime, **现在没有了**
+```c
+if (renorm && curr)
+  se->vruntime += cfs_rq->min_vruntime;
+```
+
+#### CFS 的复杂性 (3): 整数溢出
+vruntime 有优先级的 "倍数"
+* 如果溢出了 64-bit 整数怎么办？
+  * a < b 不再代表 "小于"!
+  * 
+假设: 系统中最近、最远的时刻差不超过数轴的一半
+* 我们可以比较它们的相对大小
+
+```c
+bool less(u64 a, u64 b) {
+  return (i64)(a - b) < 0;
+}
+```
+
+#### 实现 CFS 的数据结构
+用什么数据结构维护所有进程的 vruntime? (延伸到: 根据需要选择合适的数据结构)
+* 任何有序集合 (例如 binary search tree, linux kernel 用了红黑树) 维护线程 t 的 vrt(t)
+  * 更新 vrt(t) <- vrt(t) + Δt/w 
+  * 取最小的 vrt
+  * 进程创建/退出/睡眠/唤醒时插入/删除 t
+
+道理还挺简单的
+  * 代码实现有困难
+  * 还不能有并发 bug (又不能上大锁)
+
+**是否解决了问题?**
+我们之前的假设都是基于进程间不会协作.
+考虑情况: Producer, Consumer, while (1)
+
++--+---+-----------+---+---+-----------+
+| P | C |           | P | C |           |
+|   |   |  while(1) |   |   |  while(1) |
+|   |   |           |   |   |           |
++---+---+-----------+---+---+-----------+----------------->
+产生不公平: P, C 几乎不用时间片, while(1) 会把时间片用满.
+
+### 真实的处理器调度
+#### 优先级反转
+```c
+void xiao_zhang() { // 高优先级
+  sleep(1); // 休息一下先
+  mutex_lock(&wc);
+  ...
+}
+
+void xi_zhu_ren() { // 中优先级
+  while (1) ;
+}
+
+void jyy() { // 最低优先级
+  mutex_lock(&wc);
+  ...
+}
+// jyy 在持有互斥锁的时候被赶下了处理器...
+// xi_zhu_ren 抢占了 cpu, 1 ms 后 xiao_zhang 抢占 cpu, 却在等锁, 发生了优先级的反转 (xiao_zhang 等 jyy, jyy 等 xi_zhu_ren -> xiao_zhang 等 xi_zhu_ren)
+```
+上面的情况真的出现过: [The First Bug on Mars](https://kwahome.medium.com/the-first-bug-on-mars-os-scheduling-priority-inversion-and-the-mars-pathfinder-53586a631525)
+![The First Bug on Mars](https://jyywiki.cn/pages/OS/img/marsbot.png)
+##### 解决优先级反转问题
+Linux: CFS 凑合用吧
+* 实时系统: 火星车在 CPU Reset 啊喂??
+  * 优先级继承 (Priority Inheritance)/优先级提升 (Priority Ceiling)
+    * 持有 mutex 的线程/进程会继承 block 在该 mutex 上进程的最高优先级
+    * 但也不是万能的 (例如条件变量唤醒)
+* 在系统中动态维护资源依赖关系
+  * 优先级继承是它的特例
+* 避免高/低优先级的任务争抢资源
+  * 对潜在的优先级反转进行预警 (lockdep)
+  * TX-based: 冲突的 TX 发生时, 总是低优先级的 abort
+
+#### 多处理器调度的困难所在
+既不能简单地 "分配线程到处理器"
+  * 线程退出，瞬间处理器开始围观
+也不能简单地 "谁空丢给谁"
+* 在**处理器之间迁移会导致 cache/TLB 全都白给**
+
+多处理器调度的两难境地
+* 迁移? 可能过一会儿还得移回来
+* 不迁移? 造成处理器的浪费
+
+#### 实际情况 (1): 多用户、多任务
+A 和 B 要在服务器上跑实验
+* A 要跑一个任务, 因为要调用一个库, 只能单线程跑
+* B 跑并行的任务, 创建 1000 个线程跑 (公平的调度器 CFS: 公平的把 1000 个线程分到 100 个 cpu 上, B 每个 cpu 分 10 个线程, 而 A 只有一个线程, 只能分到 1 个 cpu 的 1/10)
+  * B 获得几乎 100% 的 CPU
+
+于是 Linux 就有了 Linux Namespaces Control Groups (cgroups)
+`namespaces (7), cgroups (7)`
+cgroup 允许以进程组为单位管理资源
+![以进程组为单位管理资源](https://jyywiki.cn/pages/OS/img/cgroups.jpg)
+
+#### 实际情况 (2): Big.LITTLE/能耗
+软件可以配置 CPU 的工作模式
+  * 开/关/工作频率 (频率越低, 能效越好)
+  * 如何在给定功率下平衡延迟 v.s. 吞吐量?
+
+#### 实际情况 (3): Non-Uniform Memory Access
+共享内存只是假象
+  * L1 Cache 花了巨大的代价才让你感到内存是共享的
+  * Producer/Consumer 位于同一个/不同 module 性能差距可能很大
+
+#### 程序执行比你想象得复杂
+例子: more CPU time, more progress?
+例子`os/concurrency/sum-atomic.c` 就可以 challenge 这一点
+```bash
+time taskset -c 0   ./a.out
+time taskset -c 0,1 ./a.out
+```
+分配了 1/2 的处理器资源, 反而速度更快了.
