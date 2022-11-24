@@ -41,4 +41,11 @@ members = [
     # Operating System
     "Playground/os/concurrency/thread_creation",
     "Playground/os/concurrency/locks",
+
+    # Blockchain
+    "Playground/blockchain/pow/ethash"
+]
+
+exclude = [
+    "Playground/code-analysis/serialize_deserialize/understanding-serde",
 ]
