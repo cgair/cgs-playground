@@ -38,6 +38,8 @@ members = [
     # Rust Reference
     "Rustaceans/RustReference/rust-reference",
 
+    "Rustaceans/RustDesignPatterns/rust-design-pattern",
+
     # Operating System
     "Playground/os/concurrency/thread_creation",
     "Playground/os/concurrency/locks",
