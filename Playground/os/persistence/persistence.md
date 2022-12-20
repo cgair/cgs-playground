@@ -23,8 +23,11 @@
 #### 存储介质: 磁
 ![铁磁体玩具](https://jyywiki.cn/pages/OS/img/mag-draw-board.jpg)
 磁带 (Magnetic Tape, 1928) -> 磁鼓 (Magnetic Drum, 1932) -> 磁盘 (Hard Disk, 1956) -> 软盘 (Floppy Disk, 1971) -> Compact Disk (CD, 1980) -> Solid State Drive (SSD, 1991)
+
 ![磁盘](https://jyywiki.cn/pages/OS/img/disk-mechanism.jpg)
+
 **磁盘：性能调优**
+
 为了读/写一个扇区
 1. 读写头需要到对应的磁道
 * 7200rpm → 120rps → “寻道” 时间 8.3ms
@@ -65,11 +68,11 @@
 * 放电数千/数万次以后, 就好像是 "充电" 状态了
 * dead cell; "wear out" (必须解决这个问题 SSD 才能实用)
 
-NAND Wear-Out 的解决: 软件定义磁盘
+[NAND](https://en.wikipedia.org/wiki/NAND_gate) Wear-Out 的解决: 软件定义磁盘
 * 每一个 SSD 里都藏了一个完整的计算机系统
 ![软件定义磁盘](https://jyywiki.cn/pages/OS/img/ssd.png)
 * [NAND flash管理的核心FTL](https://zhuanlan.zhihu.com/p/26944064)
-* 
+
 **Flash Translation Layer (FTL): 安全性的难题**
 * 首先, (快速) 格式化是没用的
 (M5 会告诉你这一点)
