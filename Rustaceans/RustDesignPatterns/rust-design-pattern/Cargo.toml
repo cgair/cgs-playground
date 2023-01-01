@@ -11,3 +11,7 @@ edition = "2021"
 [[bin]]
 name = "concatenating_strings"
 path = "src/idiom/concatenating_strings_with_format.rs"
+
+[[bin]]
+name = "onstack_dynamic_dispatch"
+path = "src/idiom/onstack_dynamic_dispatch.rs"
